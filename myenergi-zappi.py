@@ -24,7 +24,6 @@ import json
 import datetime
 from requests.auth import HTTPDigestAuth
 import pytz
-from calendar import monthrange
 from configparser import ConfigParser
 
 
