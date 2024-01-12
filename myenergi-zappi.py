@@ -50,104 +50,115 @@ id       = config.get("hub", "id")
 
 
 
+def retrieve_month_hourly(year, month):
+    # Start first day of month at 0h *local* time
+    local_year  = year
+    local_month = month
+    local_day   = 1
+    local_hour  = 0
+
+    # Convert start date and time to UTC
+    ##FIXME: get timezone from .ini
+    timezone = pytz.timezone('Europe/Berlin')
+
+    start_datetime = datetime.datetime(local_year, local_month, 1, 0)
+    start_datetime_local = timezone.localize(start_datetime)
+    start_datetime_utc = start_datetime_local.astimezone(pytz.utc)
+    # print(start_datetime, start_datetime_local, start_datetime_utc)
+    utc_year  = start_datetime_utc.year
+    utc_month = start_datetime_utc.month
+    utc_day   = start_datetime_utc.day
+    utc_hour  = start_datetime_utc.hour
+
+    # Calculate hours in the month, which is not trivial with DST involved
+    start_next_month = datetime.datetime(local_year + (local_month // 12), (local_month % 12) + 1, local_day, local_hour)
+    start_next_month_local = timezone.localize(start_next_month)
+    num_hours = round((start_next_month_local - start_datetime_local).total_seconds() / 60 / 60)
+    ##MJ: API only allows a certain numbe of hours, 9999 was too much
+
+
+    # Echo setup
+    print()
+    print("Username/Hub Serial Number: " + username)
+    print("Password: " + str(len(password)) + " chars")
+    print("Device serial number: " + id)
+    print("Collecting ", num_hours, "hours starting from:", start_datetime_local, "(local),", start_datetime_utc, "(UTC)")
+    print("Timezone:", timezone)
+
+    filename = "MyEnergi_Data_" + str(local_year) + "-" + str(local_month).zfill(2) + ".csv"
+    print("Saving to: " + filename)
+
+    fo = open(filename,"w")
+    # fo.write("Date (DD-MM-YYYY),Import (kWh),Export (kWh),Generation (kWh),Eddi Energy (kWh),Self Consumption (kWh),Total Property Usage (kWh),Green Percentage\n")
+    fo.write("Date,Import (kWh),Export (kWh),BEV (kWh)\n")
+
+    url = 'https://s18.myenergi.net/cgi-jdayhour-' + id + '-' + str(utc_year) + '-' + str(utc_month) + '-' + str(utc_day) + '-' + str(utc_hour) + '-' + str(num_hours)
+    print("URL: " + url + "\n")
+
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+    r = requests.get(url, auth = HTTPDigestAuth(username,password), headers = headers, timeout = 60)
+
+    if r.status_code == 200:
+        if id[0] == 'Z':
+            print ('*** Success - Zappi ***')
+            data = json.loads(r.content)
+            ##DEBUG: received JSON
+            # print("JSON =", json.dumps(data, indent=4))
+            rec='U' + id[1:] #No idea why my response is with a U and not a Z, this may be the case for everyone, or may need altering?
+            for i in range(num_hours):
+                if i >= len(data[rec]):     ## MJ: fixed, if hourly data for complete month isn't available
+                    break            
+                hr=int(data[rec][i].get('hr') or 0)
+                yr=int(data[rec][i].get('yr') or 0)
+                mon=int(data[rec][i].get('mon') or 0)
+                dom=int(data[rec][i].get('dom') or 0)
+                y_import = float(data[rec][i].get('imp') or 0)/(60*1000)
+                y_gep = float(data[rec][i].get('gep') or 0)/(60*1000)
+                y_exp = float(data[rec][i].get('exp') or 0)/(60*1000)
+                y_z1 = float(data[rec][i].get('h1d') or 0)/(60*1000)
+                y_z2 = float(data[rec][i].get('h2d') or 0)/(60*1000)
+                y_z3 = float(data[rec][i].get('h3d') or 0)/(60*1000)
+                y_z1b = float(data[rec][i].get('h1b') or 0)/(60*1000)
+                y_z2b = float(data[rec][i].get('h2b') or 0)/(60*1000)
+                y_z3b = float(data[rec][i].get('h3b') or 0)/(60*1000)
+                y_zappi = y_z1 + y_z2 + y_z3 + y_z1b + y_z2b + y_z3b
+
+                daily_generation=y_gep/60
+                daily_import=y_import/60
+                daily_export=y_exp/60
+                daily_EV=y_zappi/60
+
+                ##MJ: doesn't work for me as generation is always 0, my Zappi can only measure import/export
+                daily_self_consumption = daily_generation - daily_export
+                daily_property_usage=daily_import + daily_self_consumption
+                daily_green_percentage = (daily_self_consumption / daily_property_usage)*100
+
+                #Convert from UTC
+                dt = datetime.datetime(yr,mon,dom,hr)
+                dtutc = dt.replace(tzinfo=pytz.utc)
+                # localdt = dtutc.astimezone(pytz.timezone(timezone))
+                localdt = dtutc.astimezone(timezone) ## MJ: fixed, timezone was the result of pytz.timezone()
+
+                # print(f'{localdt.day}/{localdt.month}/{localdt.year} {localdt.hour}:00,{daily_import:.2f},{daily_export:.2f},{daily_generation:.2f},{daily_EV:.2f},{daily_self_consumption:.2f},{daily_property_usage:.2f},{daily_green_percentage:.1f}')
+                # fo.write(f'{localdt.day}/{localdt.month}/{localdt.year} {localdt.hour}:00,{daily_import:.2f},{daily_export:.2f},{daily_generation:.2f},{daily_EV:.2f},{daily_self_consumption:.2f},{daily_property_usage:.2f},{daily_green_percentage:.1f}\n')
+                fo.write(f'{localdt.day:02d}.{localdt.month:02d}.{localdt.year} {localdt.hour:02d}:00:00,{daily_import:.3f},{daily_export:.3f},{daily_EV:.3f}\n')
+        else:
+            print ('Error: unknown ID prefix provided.')
+    else:
+        print ("Failed to read ticket, errors are displayed below,")
+        response = json.loads(r.content)
+        print(response["errors"])
+        print("x-request-id : " + r.headers['x-request-id'])
+        print("Status Code : " + r.status_code)
+
+    fo.close()
+
+
+
+#FIXME: proper main()
+
 today = datetime.date.today()
 local_year  = int(input("Year (default: this year): ") or today.year)
 local_month = int(input("Month (default: this month): ") or today.month)
 
-# Hardcoded starting day and hour for monthly reports, all in local timezone
-local_day  = 1 #input("From Day (default: '1'): ") or 1
-local_hour = 0 #input("From Hour (default: '0'): ") or 0
-
-# Convert start date and time to UTC
-timezone = pytz.timezone('Europe/Berlin')
-start_datetime = datetime.datetime(local_year, local_month, local_day, local_hour)
-start_datetime_local = timezone.localize(start_datetime)
-start_datetime_utc = start_datetime_local.astimezone(pytz.utc)
-# print(start_datetime, start_datetime_local, start_datetime_utc)
-utc_year  = start_datetime_utc.year
-utc_month = start_datetime_utc.month
-utc_day   = start_datetime_utc.day
-utc_hour  = start_datetime_utc.hour
-
-# Calculate hours in the month, which is not trivial with DST involved
-start_next_month = datetime.datetime(local_year + (local_month // 12), (local_month % 12) + 1, local_day, local_hour)
-start_next_month_local = timezone.localize(start_next_month)
-num_hours = round((start_next_month_local - start_datetime_local).total_seconds() / 60 / 60)
-##MJ: API only allows a certain numbe of hours, 9999 was too much
-
-
-# Echo setup
-print()
-print("Username/Hub Serial Number: " + username)
-print("Password: " + str(len(password)) + " chars")
-print("Device serial number: " + id)
-print("Collecting ", num_hours, "hours starting from:", start_datetime_local, "(local),", start_datetime_utc, "(UTC)")
-print("Timezone:", timezone)
-
-filename = "MyEnergi_Data_" + str(local_year) + "-" + str(local_month).zfill(2) + ".csv"
-print("Saving to: " + filename)
-
-fo = open(filename,"w")
-# fo.write("Date (DD-MM-YYYY),Import (kWh),Export (kWh),Generation (kWh),Eddi Energy (kWh),Self Consumption (kWh),Total Property Usage (kWh),Green Percentage\n")
-fo.write("Datum,Import (kWh),Export (kWh),BEV (kWh)\n")
-
-url = 'https://s18.myenergi.net/cgi-jdayhour-' + id + '-' + str(utc_year) + '-' + str(utc_month) + '-' + str(utc_day) + '-' + str(utc_hour) + '-' + str(num_hours)
-print("URL: " + url + "\n")
-
-headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-r = requests.get(url, auth = HTTPDigestAuth(username,password), headers = headers, timeout = 60)
-
-if r.status_code == 200:
-    if id[0] == 'Z':
-        print ('*** Success - Zappi ***')
-        data = json.loads(r.content)
-        ##DEBUG: received JSON
-        # print("JSON =", json.dumps(data, indent=4))
-        rec='U' + id[1:] #No idea why my response is with a U and not a Z, this may be the case for everyone, or may need altering?
-        for i in range(num_hours):
-            if i >= len(data[rec]):     ## MJ: fixed, if hourly data for complete month isn't available
-                break            
-            hr=int(data[rec][i].get('hr') or 0)
-            yr=int(data[rec][i].get('yr') or 0)
-            mon=int(data[rec][i].get('mon') or 0)
-            dom=int(data[rec][i].get('dom') or 0)
-            y_import = float(data[rec][i].get('imp') or 0)/(60*1000)
-            y_gep = float(data[rec][i].get('gep') or 0)/(60*1000)
-            y_exp = float(data[rec][i].get('exp') or 0)/(60*1000)
-            y_z1 = float(data[rec][i].get('h1d') or 0)/(60*1000)
-            y_z2 = float(data[rec][i].get('h2d') or 0)/(60*1000)
-            y_z3 = float(data[rec][i].get('h3d') or 0)/(60*1000)
-            y_z1b = float(data[rec][i].get('h1b') or 0)/(60*1000)
-            y_z2b = float(data[rec][i].get('h2b') or 0)/(60*1000)
-            y_z3b = float(data[rec][i].get('h3b') or 0)/(60*1000)
-            y_zappi = y_z1 + y_z2 + y_z3 + y_z1b + y_z2b + y_z3b
-
-            daily_generation=y_gep/60
-            daily_import=y_import/60
-            daily_export=y_exp/60
-            daily_EV=y_zappi/60
-
-            ##MJ: doesn't work for me as generation is always 0, my Zappi can only measure import/export
-            daily_self_consumption = daily_generation - daily_export
-            daily_property_usage=daily_import + daily_self_consumption
-            daily_green_percentage = (daily_self_consumption / daily_property_usage)*100
-
-            #Convert from UTC
-            dt = datetime.datetime(yr,mon,dom,hr)
-            dtutc = dt.replace(tzinfo=pytz.utc)
-            # localdt = dtutc.astimezone(pytz.timezone(timezone))
-            localdt = dtutc.astimezone(timezone) ## MJ: fixed, timezone was the result of pytz.timezone()
-
-            # print(f'{localdt.day}/{localdt.month}/{localdt.year} {localdt.hour}:00,{daily_import:.2f},{daily_export:.2f},{daily_generation:.2f},{daily_EV:.2f},{daily_self_consumption:.2f},{daily_property_usage:.2f},{daily_green_percentage:.1f}')
-            # fo.write(f'{localdt.day}/{localdt.month}/{localdt.year} {localdt.hour}:00,{daily_import:.2f},{daily_export:.2f},{daily_generation:.2f},{daily_EV:.2f},{daily_self_consumption:.2f},{daily_property_usage:.2f},{daily_green_percentage:.1f}\n')
-            fo.write(f'{localdt.day:02d}.{localdt.month:02d}.{localdt.year} {localdt.hour:02d}:00:00,{daily_import:.3f},{daily_export:.3f},{daily_EV:.3f}\n')
-    else:
-        print ('Error: unknown ID prefix provided.')
-else:
-    print ("Failed to read ticket, errors are displayed below,")
-    response = json.loads(r.content)
-    print(response["errors"])
-    print("x-request-id : " + r.headers['x-request-id'])
-    print("Status Code : " + r.status_code)
-
-fo.close()
+retrieve_month_hourly(local_year, local_month)
