@@ -34,19 +34,22 @@ NAME    = "myenergi-zappi"
 
 
 
-# Read .ini file for secrets, same format as used by the pymyenergi library
+# Read .ini file for secrets, same format as used by the pymyenergi library with some additions
 #
 # [hub]
 # serial=12345678
 # password=yourpassword
 # id=Z12345678      # "Z" for Zappi + serial
 # id=E12345678      # "E" for Eddit + serial
+# timezone=Europe/Berlin
 
 config = ConfigParser()
 config.read("./.myenergi.cfg")
 username = config.get("hub", "serial")
 password = config.get("hub", "password")
 id       = config.get("hub", "id")
+timezone = pytz.timezone(config.get("hub", "timezone"))
+
 
 
 
@@ -58,9 +61,6 @@ def retrieve_month_hourly(year, month):
     local_hour  = 0
 
     # Convert start date and time to UTC
-    ##FIXME: get timezone from .ini
-    timezone = pytz.timezone('Europe/Berlin')
-
     start_datetime = datetime.datetime(local_year, local_month, 1, 0)
     start_datetime_local = timezone.localize(start_datetime)
     start_datetime_utc = start_datetime_local.astimezone(pytz.utc)
