@@ -61,7 +61,7 @@ def retrieve_month_hourly(year, month):
     local_hour  = 0
 
     # Convert start date and time to UTC
-    start_datetime = datetime.datetime(local_year, local_month, 1, 0)
+    start_datetime = datetime.datetime(local_year, local_month, local_day, local_hour)
     start_datetime_local = timezone.localize(start_datetime)
     start_datetime_utc = start_datetime_local.astimezone(pytz.utc)
     # print(start_datetime, start_datetime_local, start_datetime_utc)
@@ -79,14 +79,14 @@ def retrieve_month_hourly(year, month):
 
     # Echo setup
     print()
-    print("Username/Hub Serial Number: " + username)
-    print("Password: " + str(len(password)) + " chars")
-    print("Device serial number: " + id)
-    print("Collecting ", num_hours, "hours starting from:", start_datetime_local, "(local),", start_datetime_utc, "(UTC)")
+    print("Serial number:", username)
+    print("API key:", len(password), " chars")
+    print("Device id:", id)
+    print("Collecting", num_hours, "hours starting from:", start_datetime_local, "(local),", start_datetime_utc, "(UTC)")
     print("Timezone:", timezone)
 
     filename = "MyEnergi_Data_" + str(local_year) + "-" + str(local_month).zfill(2) + ".csv"
-    print("Saving to: " + filename)
+    print("Saving to:", filename)
 
     fo = open(filename,"w")
     # fo.write("Date (DD-MM-YYYY),Import (kWh),Export (kWh),Generation (kWh),Eddi Energy (kWh),Self Consumption (kWh),Total Property Usage (kWh),Green Percentage\n")
