@@ -78,7 +78,7 @@ def main():
     timezone = pytz.timezone(config.get("hub", "timezone"))
     verbose("Serial number", username)
 
-
+    # Based on code snippet from https://myenergi.info/viewtopic.php?p=29050#p29050, user DougieL
     director_url = "https://director.myenergi.net"
     verbose("Director:", director_url)
     response = requests.get(director_url, auth=HTTPDigestAuth(username, password))
