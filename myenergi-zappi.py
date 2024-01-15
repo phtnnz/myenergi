@@ -99,7 +99,7 @@ def retrieve_month_hourly(api_server, year, month):
     local_hour  = 0
 
     # Convert start date and time to UTC
-    start_datetime_local = timezone.localize(start_datetime = datetime.datetime(local_year, local_month, local_day, local_hour))
+    start_datetime_local = timezone.localize(datetime.datetime(local_year, local_month, local_day, local_hour))
     start_datetime_utc   = start_datetime_local.astimezone(pytz.utc)
     utc_year             = start_datetime_utc.year
     utc_month            = start_datetime_utc.month
