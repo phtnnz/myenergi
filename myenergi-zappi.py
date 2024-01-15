@@ -154,7 +154,11 @@ def retrieve_month_hourly(year, month):
                 dtutc = dt.replace(tzinfo=pytz.utc)
                 localdt = dtutc.astimezone(timezone)
 
-                CSVOutput.add_csv_row([localdt.strftime("%x %X"), f'{daily_import:.3f}', f'{daily_export:.3f}', f'{daily_EV:.3f}'])
+                CSVOutput.add_csv_row([localdt.strftime("%x %X"),
+                                       locale.format_string("%.3f", daily_import),
+                                       locale.format_string("%.3f", daily_export),
+                                       locale.format_string("%.3f", daily_EV)
+                                       ])
         else:
             print ('Error: unknown ID prefix provided.')
     else:
