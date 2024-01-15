@@ -28,6 +28,9 @@ from configparser import ConfigParser
 import csv
 import locale
 
+# local modules
+from verbose import verbose, warning, error
+
 
 global VERSION, AUTHOR, NAME
 VERSION = "0.1 / 2024-01-12"
@@ -75,8 +78,20 @@ class CSVOutput:
 
 
 
+def retrieve_api_server():
+    # Based on code snippet from https://myenergi.info/viewtopic.php?p=29050#p29050, user DougieL
+    director_url = "https://director.myenergi.net"
+    verbose("Director:", director_url)
+    response = requests.get(director_url, auth=HTTPDigestAuth(username, password))
+    verbose(response)
+    api_server = response.headers['X_MYENERGI-asn']
 
-def retrieve_month_hourly(year, month):
+    print("API server:", api_server)
+    return api_server
+
+
+
+def retrieve_month_hourly(api_server, year, month):
     # Start first day of month at 0h *local* time
     local_year  = year
     local_month = month
@@ -108,7 +123,7 @@ def retrieve_month_hourly(year, month):
     print("Collecting", num_hours, "hours starting from:", start_datetime_local, "(local),", start_datetime_utc, "(UTC)")
     print("Timezone:", timezone)
 
-    url = 'https://s18.myenergi.net/cgi-jdayhour-' + id + '-' + str(utc_year) + '-' + str(utc_month) + '-' + str(utc_day) + '-' + str(utc_hour) + '-' + str(num_hours)
+    url = "https://" + api_server + "/cgi-jdayhour-" + id + '-' + str(utc_year) + '-' + str(utc_month) + '-' + str(utc_day) + '-' + str(utc_hour) + '-' + str(num_hours)
     print("URL: " + url + "\n")
 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
@@ -178,7 +193,8 @@ local_month = int(input("Month (default: this month): ") or today.month)
 
 CSVOutput.add_csv_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
 
-retrieve_month_hourly(local_year, local_month)
+api_server = retrieve_api_server()
+retrieve_month_hourly(api_server, local_year, local_month)
 
 filename = "MyEnergi_Data_" + str(local_year) + "-" + str(local_month).zfill(2) + ".csv"
 print("Saving to:", filename)
