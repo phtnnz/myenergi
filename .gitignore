@@ -1,10 +1,8 @@
 .myenergi.cfg
 activate.bat
 create-venv.bat
-MyEnergi_Data_2023-11.csv
-MyEnergi_Data_2023-12.csv
-MyEnergi_Data_2024-01.csv
 myenergi.xlsx
 venv/*
 test.csv
 __pycache__/
+*.csv
