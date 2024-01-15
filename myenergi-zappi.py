@@ -105,23 +105,23 @@ def retrieve_month_hourly(year, month):
             ##DEBUG: received JSON
             # print("JSON =", json.dumps(data, indent=4))
             rec='U' + id[1:] #No idea why my response is with a U and not a Z, this may be the case for everyone, or may need altering?
-            for i in range(num_hours):
-                if i >= len(data[rec]):     ## MJ: fixed, if hourly data for complete month isn't available
-                    break            
-                hr=int(data[rec][i].get('hr') or 0)
-                yr=int(data[rec][i].get('yr') or 0)
-                mon=int(data[rec][i].get('mon') or 0)
-                dom=int(data[rec][i].get('dom') or 0)
-                y_import = float(data[rec][i].get('imp') or 0)/(60*1000)
-                y_gep = float(data[rec][i].get('gep') or 0)/(60*1000)
-                y_exp = float(data[rec][i].get('exp') or 0)/(60*1000)
-                y_z1 = float(data[rec][i].get('h1d') or 0)/(60*1000)
-                y_z2 = float(data[rec][i].get('h2d') or 0)/(60*1000)
-                y_z3 = float(data[rec][i].get('h3d') or 0)/(60*1000)
-                y_z1b = float(data[rec][i].get('h1b') or 0)/(60*1000)
-                y_z2b = float(data[rec][i].get('h2b') or 0)/(60*1000)
-                y_z3b = float(data[rec][i].get('h3b') or 0)/(60*1000)
-                y_zappi = y_z1 + y_z2 + y_z3 + y_z1b + y_z2b + y_z3b
+            for data1 in data[rec]:
+                # if i >= len(data[rec]):     ## MJ: fixed, if hourly data for complete month isn't available
+                #     break            
+                hr       = int(data1.get('hr') or 0)
+                yr       = int(data1.get('yr') or 0)
+                mon      = int(data1.get('mon') or 0)
+                dom      = int(data1.get('dom') or 0)
+                y_import = float(data1.get('imp') or 0)/(60*1000)
+                y_gep    = float(data1.get('gep') or 0)/(60*1000)
+                y_exp    = float(data1.get('exp') or 0)/(60*1000)
+                y_z1     = float(data1.get('h1d') or 0)/(60*1000)
+                y_z2     = float(data1.get('h2d') or 0)/(60*1000)
+                y_z3     = float(data1.get('h3d') or 0)/(60*1000)
+                y_z1b    = float(data1.get('h1b') or 0)/(60*1000)
+                y_z2b    = float(data1.get('h2b') or 0)/(60*1000)
+                y_z3b    = float(data1.get('h3b') or 0)/(60*1000)
+                y_zappi  = y_z1 + y_z2 + y_z3 + y_z1b + y_z2b + y_z3b
 
                 daily_generation=y_gep/60
                 daily_import=y_import/60
@@ -136,8 +136,7 @@ def retrieve_month_hourly(year, month):
                 #Convert from UTC
                 dt = datetime.datetime(yr,mon,dom,hr)
                 dtutc = dt.replace(tzinfo=pytz.utc)
-                # localdt = dtutc.astimezone(pytz.timezone(timezone))
-                localdt = dtutc.astimezone(timezone) ## MJ: fixed, timezone was the result of pytz.timezone()
+                localdt = dtutc.astimezone(timezone)
 
                 # print(f'{localdt.day}/{localdt.month}/{localdt.year} {localdt.hour}:00,{daily_import:.2f},{daily_export:.2f},{daily_generation:.2f},{daily_EV:.2f},{daily_self_consumption:.2f},{daily_property_usage:.2f},{daily_green_percentage:.1f}')
                 # fo.write(f'{localdt.day}/{localdt.month}/{localdt.year} {localdt.hour}:00,{daily_import:.2f},{daily_export:.2f},{daily_generation:.2f},{daily_EV:.2f},{daily_self_consumption:.2f},{daily_property_usage:.2f},{daily_green_percentage:.1f}\n')
