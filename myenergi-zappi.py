@@ -175,22 +175,24 @@ def retrieve_month_hourly(api_server, year, month):
 
 
 
-#FIXME: proper main()
+def main():
+    print("Serial number:", username)
+    print("API key:", len(password), " chars")
+    print("Device id:", id)
+    print("Timezone:", timezone)
 
-print("Serial number:", username)
-print("API key:", len(password), " chars")
-print("Device id:", id)
-print("Timezone:", timezone)
+    today = datetime.date.today()
+    local_year  = int(input("Year (default: this year): ") or today.year)
+    local_month = int(input("Month (default: this month): ") or today.month)
 
-today = datetime.date.today()
-local_year  = int(input("Year (default: this year): ") or today.year)
-local_month = int(input("Month (default: this month): ") or today.month)
+    CSVOutput.add_csv_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
 
-CSVOutput.add_csv_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
+    api_server = retrieve_api_server()
+    retrieve_month_hourly(api_server, local_year, local_month)
 
-api_server = retrieve_api_server()
-retrieve_month_hourly(api_server, local_year, local_month)
+    filename = "MyEnergi_Data_" + str(local_year) + "-" + str(local_month).zfill(2) + ".csv"
+    print("Saving to:", filename)
+    CSVOutput.write_csv(filename)
 
-filename = "MyEnergi_Data_" + str(local_year) + "-" + str(local_month).zfill(2) + ".csv"
-print("Saving to:", filename)
-CSVOutput.write_csv(filename)
+if __name__ == "__main__":
+    main()
