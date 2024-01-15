@@ -108,13 +108,6 @@ def retrieve_month_hourly(year, month):
     print("Collecting", num_hours, "hours starting from:", start_datetime_local, "(local),", start_datetime_utc, "(UTC)")
     print("Timezone:", timezone)
 
-    filename = "MyEnergi_Data_" + str(local_year) + "-" + str(local_month).zfill(2) + ".csv"
-    print("Saving to:", filename)
-
-    fo = open(filename,"w")
-    # fo.write("Date (DD-MM-YYYY),Import (kWh),Export (kWh),Generation (kWh),Eddi Energy (kWh),Self Consumption (kWh),Total Property Usage (kWh),Green Percentage\n")
-    fo.write("Date,Import (kWh),Export (kWh),BEV (kWh)\n")
-
     url = 'https://s18.myenergi.net/cgi-jdayhour-' + id + '-' + str(utc_year) + '-' + str(utc_month) + '-' + str(utc_day) + '-' + str(utc_hour) + '-' + str(num_hours)
     print("URL: " + url + "\n")
 
@@ -161,10 +154,7 @@ def retrieve_month_hourly(year, month):
                 dtutc = dt.replace(tzinfo=pytz.utc)
                 localdt = dtutc.astimezone(timezone)
 
-                # print(f'{localdt.day}/{localdt.month}/{localdt.year} {localdt.hour}:00,{daily_import:.2f},{daily_export:.2f},{daily_generation:.2f},{daily_EV:.2f},{daily_self_consumption:.2f},{daily_property_usage:.2f},{daily_green_percentage:.1f}')
-                # fo.write(f'{localdt.day}/{localdt.month}/{localdt.year} {localdt.hour}:00,{daily_import:.2f},{daily_export:.2f},{daily_generation:.2f},{daily_EV:.2f},{daily_self_consumption:.2f},{daily_property_usage:.2f},{daily_green_percentage:.1f}\n')
-                # fo.write(f'{localdt.day:02d}.{localdt.month:02d}.{localdt.year} {localdt.hour:02d}:00:00,{daily_import:.3f},{daily_export:.3f},{daily_EV:.3f}\n')
-                fo.write(localdt.strftime("%x %X") + f',{daily_import:.3f},{daily_export:.3f},{daily_EV:.3f}\n')
+                CSVOutput.add_csv_row([localdt.strftime("%x %X"), f'{daily_import:.3f}', f'{daily_export:.3f}', f'{daily_EV:.3f}'])
         else:
             print ('Error: unknown ID prefix provided.')
     else:
@@ -173,8 +163,6 @@ def retrieve_month_hourly(year, month):
         print(response["errors"])
         print("x-request-id : " + r.headers['x-request-id'])
         print("Status Code : " + r.status_code)
-
-    fo.close()
 
 
 
@@ -187,3 +175,7 @@ local_month = int(input("Month (default: this month): ") or today.month)
 CSVOutput.add_csv_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
 
 retrieve_month_hourly(local_year, local_month)
+
+filename = "MyEnergi_Data_" + str(local_year) + "-" + str(local_month).zfill(2) + ".csv"
+print("Saving to:", filename)
+CSVOutput.write_csv(filename)
