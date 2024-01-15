@@ -25,6 +25,8 @@ import datetime
 from requests.auth import HTTPDigestAuth
 import pytz
 from configparser import ConfigParser
+import csv
+import locale
 
 
 global VERSION, AUTHOR, NAME
@@ -42,6 +44,7 @@ NAME    = "myenergi-zappi"
 # id=Z12345678      # "Z" for Zappi + serial
 # id=E12345678      # "E" for Eddit + serial
 # timezone=Europe/Berlin
+# locale=deu_deu
 
 config = ConfigParser()
 config.read("./.myenergi.cfg")
@@ -49,6 +52,26 @@ username = config.get("hub", "serial")
 password = config.get("hub", "password")
 id       = config.get("hub", "id")
 timezone = pytz.timezone(config.get("hub", "timezone"))
+locale.setlocale(locale.LC_ALL, config.get("hub", "locale"))
+
+
+
+class CSVOutput:
+    csv_cache = []
+    fields = None
+
+    def add_csv_row(obj):
+        CSVOutput.csv_cache.append(obj)
+
+    def add_csv_fields(fields):
+        CSVOutput.fields = fields
+
+    def write_csv(file):
+        with open(file, 'w', newline='') as f:
+            writer = csv.writer(f, dialect="excel", delimiter=";", quoting=csv.QUOTE_ALL)
+            if CSVOutput.fields:
+                writer.writerow(CSVOutput.fields)
+            writer.writerows(CSVOutput.csv_cache)
 
 
 
@@ -121,26 +144,27 @@ def retrieve_month_hourly(year, month):
                 y_z1b    = float(data1.get('h1b') or 0)/(60*1000)
                 y_z2b    = float(data1.get('h2b') or 0)/(60*1000)
                 y_z3b    = float(data1.get('h3b') or 0)/(60*1000)
+                # from original script, Zappi charging only fills h1d, h2d, h3d
                 y_zappi  = y_z1 + y_z2 + y_z3 + y_z1b + y_z2b + y_z3b
 
-                daily_generation=y_gep/60
                 daily_import=y_import/60
                 daily_export=y_exp/60
                 daily_EV=y_zappi/60
+                ## doesn't work for me as generation is always 0, my Zappi can only measure import/export
+                # daily_generation=y_gep/60
+                # daily_self_consumption = daily_generation - daily_export
+                # daily_property_usage=daily_import + daily_self_consumption
+                # daily_green_percentage = (daily_self_consumption / daily_property_usage)*100
 
-                ##MJ: doesn't work for me as generation is always 0, my Zappi can only measure import/export
-                daily_self_consumption = daily_generation - daily_export
-                daily_property_usage=daily_import + daily_self_consumption
-                daily_green_percentage = (daily_self_consumption / daily_property_usage)*100
-
-                #Convert from UTC
+                # Convert from UTC
                 dt = datetime.datetime(yr,mon,dom,hr)
                 dtutc = dt.replace(tzinfo=pytz.utc)
                 localdt = dtutc.astimezone(timezone)
 
                 # print(f'{localdt.day}/{localdt.month}/{localdt.year} {localdt.hour}:00,{daily_import:.2f},{daily_export:.2f},{daily_generation:.2f},{daily_EV:.2f},{daily_self_consumption:.2f},{daily_property_usage:.2f},{daily_green_percentage:.1f}')
                 # fo.write(f'{localdt.day}/{localdt.month}/{localdt.year} {localdt.hour}:00,{daily_import:.2f},{daily_export:.2f},{daily_generation:.2f},{daily_EV:.2f},{daily_self_consumption:.2f},{daily_property_usage:.2f},{daily_green_percentage:.1f}\n')
-                fo.write(f'{localdt.day:02d}.{localdt.month:02d}.{localdt.year} {localdt.hour:02d}:00:00,{daily_import:.3f},{daily_export:.3f},{daily_EV:.3f}\n')
+                # fo.write(f'{localdt.day:02d}.{localdt.month:02d}.{localdt.year} {localdt.hour:02d}:00:00,{daily_import:.3f},{daily_export:.3f},{daily_EV:.3f}\n')
+                fo.write(localdt.strftime("%x %X") + f',{daily_import:.3f},{daily_export:.3f},{daily_EV:.3f}\n')
         else:
             print ('Error: unknown ID prefix provided.')
     else:
@@ -159,5 +183,7 @@ def retrieve_month_hourly(year, month):
 today = datetime.date.today()
 local_year  = int(input("Year (default: this year): ") or today.year)
 local_month = int(input("Month (default: this month): ") or today.month)
+
+CSVOutput.add_csv_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
 
 retrieve_month_hourly(local_year, local_month)
