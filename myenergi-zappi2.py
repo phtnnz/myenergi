@@ -148,7 +148,7 @@ def retrieve_month_hourly(api_server, year, month):
             print ('*** Success - Zappi ***')
             data = json.loads(r.content)
             ##DEBUG: received JSON
-            print("JSON =", json.dumps(data, indent=4))
+            # print("JSON =", json.dumps(data, indent=4))
             rec='U' + id[1:] #No idea why my response is with a U and not a Z, this may be the case for everyone, or may need altering?
             for data1 in data[rec]:
                 # if i >= len(data[rec]):     ## MJ: fixed, if hourly data for complete month isn't available
@@ -180,7 +180,7 @@ def retrieve_month_hourly(api_server, year, month):
 
                 # convert from UTC date/time in JSON output
                 localdt = datetime.datetime(yr,mon,dom,hr) .replace(tzinfo=pytz.utc) .astimezone(timezone)
-                ic(localdt)
+                ic(localdt, daily_import, daily_export, daily_EV)
                 CSVOutput.add_csv_row([localdt.strftime("%x %X"),
                                        locale.format_string("%.3f", daily_import),
                                        locale.format_string("%.3f", daily_export),
@@ -224,14 +224,9 @@ def main():
     print("Device id:", id)
     print("Timezone:", timezone)
 
-    today = datetime.date.today()
-    # local_year  = int(input("Year (default: this year): ") or today.year)
-    # local_month = int(input("Month (default: this month): ") or today.month)
-
     CSVOutput.add_csv_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
 
     api_server = retrieve_api_server()
-    # retrieve_month_hourly(api_server, local_year, local_month)
     retrieve_month_hourly(api_server, 2023, 11)
     retrieve_month_hourly(api_server, 2023, 12)
     retrieve_month_hourly(api_server, 2024, 1)
