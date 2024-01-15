@@ -99,14 +99,12 @@ def retrieve_month_hourly(api_server, year, month):
     local_hour  = 0
 
     # Convert start date and time to UTC
-    start_datetime = datetime.datetime(local_year, local_month, local_day, local_hour)
-    start_datetime_local = timezone.localize(start_datetime)
-    start_datetime_utc = start_datetime_local.astimezone(pytz.utc)
-    # print(start_datetime, start_datetime_local, start_datetime_utc)
-    utc_year  = start_datetime_utc.year
-    utc_month = start_datetime_utc.month
-    utc_day   = start_datetime_utc.day
-    utc_hour  = start_datetime_utc.hour
+    start_datetime_local = timezone.localize(start_datetime = datetime.datetime(local_year, local_month, local_day, local_hour))
+    start_datetime_utc   = start_datetime_local.astimezone(pytz.utc)
+    utc_year             = start_datetime_utc.year
+    utc_month            = start_datetime_utc.month
+    utc_day              = start_datetime_utc.day
+    utc_hour             = start_datetime_utc.hour
 
     # Calculate hours in the month, which is not trivial with DST involved
     start_next_month = datetime.datetime(local_year + (local_month // 12), (local_month % 12) + 1, local_day, local_hour)
@@ -114,14 +112,8 @@ def retrieve_month_hourly(api_server, year, month):
     num_hours = round((start_next_month_local - start_datetime_local).total_seconds() / 60 / 60)
     ##MJ: API only allows a certain numbe of hours, 9999 was too much
 
-
     # Echo setup
-    print()
-    print("Serial number:", username)
-    print("API key:", len(password), " chars")
-    print("Device id:", id)
     print("Collecting", num_hours, "hours starting from:", start_datetime_local, "(local),", start_datetime_utc, "(UTC)")
-    print("Timezone:", timezone)
 
     url = "https://" + api_server + "/cgi-jdayhour-" + id + '-' + str(utc_year) + '-' + str(utc_month) + '-' + str(utc_day) + '-' + str(utc_hour) + '-' + str(num_hours)
     print("URL: " + url + "\n")
@@ -164,10 +156,8 @@ def retrieve_month_hourly(api_server, year, month):
                 # daily_property_usage=daily_import + daily_self_consumption
                 # daily_green_percentage = (daily_self_consumption / daily_property_usage)*100
 
-                # Convert from UTC
-                dt = datetime.datetime(yr,mon,dom,hr)
-                dtutc = dt.replace(tzinfo=pytz.utc)
-                localdt = dtutc.astimezone(timezone)
+                # convert from UTC date/time in JSON output
+                localdt = datetime.datetime(yr,mon,dom,hr) .replace(tzinfo=pytz.utc) .astimezone(timezone)
 
                 CSVOutput.add_csv_row([localdt.strftime("%x %X"),
                                        locale.format_string("%.3f", daily_import),
@@ -186,6 +176,11 @@ def retrieve_month_hourly(api_server, year, month):
 
 
 #FIXME: proper main()
+
+print("Serial number:", username)
+print("API key:", len(password), " chars")
+print("Device id:", id)
+print("Timezone:", timezone)
 
 today = datetime.date.today()
 local_year  = int(input("Year (default: this year): ") or today.year)
