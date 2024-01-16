@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2023 Martin Junius
+# Copyright 2024 Contributors, see below
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
 #                                  I left Brad's Zappi section alone as I don't have an Zappi to test with
 # Modified by Tamas Solymos 13/8/2023 refactored to read better, converted for monthly summaries (DST and timezone) aware
 
-# ChangeLog
+# ChangeLog Martin Junius
 # Version 0.1 / 2024-01-12
 #       First overhauled version of the script posted to the myenergi forum
 #       Zappi-only version of modified original script
@@ -43,8 +43,6 @@ import pytz
 from configparser import ConfigParser
 import csv
 import locale
-import sys
-import os
 import argparse
 
 # The following libs must be installed with pip
@@ -69,16 +67,26 @@ NAME    = "myenergi-zappi2"
 # id=Z12345678      # "Z" for Zappi + serial
 # id=E12345678      # "E" for Eddit + serial
 # timezone=Europe/Berlin
-# locale=deu_deu
+# locale=
 
-config = ConfigParser()
-config.read("./.myenergi.cfg")
-username = config.get("hub", "serial")
-password = config.get("hub", "password")
-id       = config.get("hub", "id")
-timezone = pytz.timezone(config.get("hub", "timezone"))
-locale.setlocale(locale.LC_ALL, config.get("hub", "locale"))
-ic(username, password, id, timezone, locale.getlocale(), locale.localeconv())
+class Config(ConfigParser):
+    filename = None
+    username = None
+    password = None
+    id       = None
+    timezone = None
+
+    def __init__(self, file=None):
+        super().__init__()
+        if file:
+            Config.filename = file
+            self.read(file)
+            Config.username = self.get("hub", "serial")
+            Config.password = self.get("hub", "password")
+            Config.id       = self.get("hub", "id")
+            Config.timezone = pytz.timezone(self.get("hub", "timezone"))
+            locale.setlocale(locale.LC_ALL, self.get("hub", "locale"))
+            ic(Config.username, Config.password, Config.id, Config.timezone, locale.getlocale(), locale.localeconv())
 
 
 
@@ -110,11 +118,11 @@ def retrieve_api_server():
     # Based on code snippet from https://myenergi.info/viewtopic.php?p=29050#p29050, user DougieL
     director_url = "https://director.myenergi.net"
     verbose("Director:", director_url)
-    response = requests.get(director_url, auth=HTTPDigestAuth(username, password))
+    response = requests.get(director_url, auth=HTTPDigestAuth(Config.username, Config.password))
     verbose(response)
     api_server = response.headers['X_MYENERGI-asn']
 
-    print("API server:", api_server)
+    verbose("API server:", api_server)
     return api_server
 
 
@@ -127,7 +135,7 @@ def retrieve_month_hourly(api_server, year, month):
     local_hour  = 0
 
     # Convert start date and time to UTC
-    start_datetime_local = timezone.localize(datetime.datetime(local_year, local_month, local_day, local_hour))
+    start_datetime_local = Config.timezone.localize(datetime.datetime(local_year, local_month, local_day, local_hour))
     start_datetime_utc   = start_datetime_local.astimezone(pytz.utc)
     utc_year             = start_datetime_utc.year
     utc_month            = start_datetime_utc.month
@@ -136,22 +144,22 @@ def retrieve_month_hourly(api_server, year, month):
 
     # Calculate hours in the month, which is not trivial with DST involved
     start_next_month = datetime.datetime(local_year + (local_month // 12), (local_month % 12) + 1, local_day, local_hour)
-    start_next_month_local = timezone.localize(start_next_month)
+    start_next_month_local = Config.timezone.localize(start_next_month)
     num_hours = round((start_next_month_local - start_datetime_local).total_seconds() / 60 / 60)
     ##MJ: API only allows a certain numbe of hours, 9999 was too much
 
-    # Echo setup
-    print("Collecting", num_hours, "hours starting from:", start_datetime_local, "(local),", start_datetime_utc, "(UTC)")
+    id = Config.id
+    verbose("Collecting", num_hours, "hours starting from:", start_datetime_local, "(local),", start_datetime_utc, "(UTC)")
 
     url = "https://" + api_server + "/cgi-jdayhour-" + id + '-' + str(utc_year) + '-' + str(utc_month) + '-' + str(utc_day) + '-' + str(utc_hour) + '-' + str(num_hours)
-    print("URL: " + url + "\n")
+    verbose("URL: " + url + "\n")
 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-    r = requests.get(url, auth = HTTPDigestAuth(username,password), headers = headers, timeout = 60)
+    r = requests.get(url, auth = HTTPDigestAuth(Config.username,Config.password), headers = headers, timeout = 60)
 
     if r.status_code == 200:
         if id[0] == 'Z':
-            print ('*** Success - Zappi ***')
+            verbose('*** Success - Zappi ***')
             data = json.loads(r.content)
             ##DEBUG: received JSON
             # print("JSON =", json.dumps(data, indent=4))
@@ -185,8 +193,8 @@ def retrieve_month_hourly(api_server, year, month):
                 # daily_green_percentage = (daily_self_consumption / daily_property_usage)*100
 
                 # convert from UTC date/time in JSON output
-                localdt = datetime.datetime(yr,mon,dom,hr) .replace(tzinfo=pytz.utc) .astimezone(timezone)
-                ic(localdt, daily_import, daily_export, daily_EV)
+                localdt = datetime.datetime(yr,mon,dom,hr) .replace(tzinfo=pytz.utc) .astimezone(Config.timezone)
+                # ic(localdt, daily_import, daily_export, daily_EV)
                 CSVOutput.add_csv_row([localdt.strftime("%x %X"),
                                        locale.format_string("%.3f", daily_import),
                                        locale.format_string("%.3f", daily_export),
@@ -225,11 +233,7 @@ def main():
         ic.enable()
     ic(args)
 
-    print("Serial number:", username)
-    print("API key:", len(password), " chars")
-    print("Device id:", id)
-    print("Timezone:", timezone)
-
+    Config(".myenergi.cfg")
     CSVOutput.add_csv_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
 
     api_server = retrieve_api_server()
