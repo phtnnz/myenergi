@@ -78,6 +78,7 @@ password = config.get("hub", "password")
 id       = config.get("hub", "id")
 timezone = pytz.timezone(config.get("hub", "timezone"))
 locale.setlocale(locale.LC_ALL, config.get("hub", "locale"))
+ic(username, password, id, timezone, locale.getlocale(), locale.localeconv())
 
 
 
@@ -93,7 +94,12 @@ class CSVOutput:
 
     def write_csv(file):
         with open(file, 'w', newline='') as f:
-            writer = csv.writer(f, dialect="excel", delimiter=";", quoting=csv.QUOTE_ALL)
+            ##FIXME: check  locale.RADIXCHAR
+            if locale.localeconv()['decimal_point'] == ",":
+                # Use ; as the separator and quote all fields for easy import in "German" Excel
+                writer = csv.writer(f, dialect="excel", delimiter=";", quoting=csv.QUOTE_ALL)
+            else:
+                writer = csv.writer(f, dialect="excel")
             if CSVOutput.fields:
                 writer.writerow(CSVOutput.fields)
             writer.writerows(CSVOutput.csv_cache)
