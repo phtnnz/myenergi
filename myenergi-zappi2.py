@@ -80,14 +80,18 @@ class Config(ConfigParser):
     def __init__(self, file=None):
         super().__init__()
         if file:
-            Config.filename = file
             self.read(file)
-            Config.username = self.get("hub", "serial")
-            Config.password = self.get("hub", "password")
-            Config.id       = self.get("hub", "id")
-            Config.timezone = pytz.timezone(self.get("hub", "timezone"))
-            locale.setlocale(locale.LC_ALL, self.get("hub", "locale"))
-            ic(Config.username, Config.password, Config.id, Config.timezone, locale.getlocale(), locale.localeconv())
+            
+
+    def read(self, file):
+        Config.filename = file
+        super().read(file)
+        Config.username = self.get("hub", "serial")
+        Config.password = self.get("hub", "password")
+        Config.id       = self.get("hub", "id")
+        Config.timezone = pytz.timezone(self.get("hub", "timezone"))
+        locale.setlocale(locale.LC_ALL, self.get("hub", "locale"))
+        ic(Config.username, Config.password, Config.id, Config.timezone, locale.getlocale(), locale.localeconv())
 
 
 
