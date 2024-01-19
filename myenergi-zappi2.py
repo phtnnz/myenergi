@@ -219,8 +219,9 @@ def main():
         epilog      = "Version " + VERSION + " / " + AUTHOR)
     arg.add_argument("-v", "--verbose", action="store_true", help="verbose messages")
     arg.add_argument("-d", "--debug", action="store_true", help="more debug messages")
-    arg.add_argument("-s", "--start", help="Start YYYY-MM for report (default this month)")
-    arg.add_argument("-e", "--end", help="End YYYY-MM for report (default this month)")
+    arg.add_argument("-s", "--start", help="start YYYY-MM for report (default this month)")
+    arg.add_argument("-e", "--end", help="end YYYY-MM for report (default this month)")
+    arg.add_argument("-o", "--output", help="output CSV file (default MyEnergi_Data.csv)")
     # arg.add_argument("-i", "--int", type=int, help="example option int")
     # arg.add_argument("dirname", help="directory name")
     # # nargs="+" for min 1 filename argument
@@ -254,7 +255,8 @@ def main():
             month_e = int(m.group(2))
         else:
             error("illegal format for --end option:", args.end)
-    ic(year_s, month_s, year_e, month_e)
+    filename = args.output or "MyEnergi_Data.csv"
+    ic(filename, year_s, month_s, year_e, month_e)
 
     # Actions starts here ...
     Config(".myenergi.cfg")
@@ -268,8 +270,7 @@ def main():
             ic(year, month)
             retrieve_month_hourly(api_server, year, month)
 
-    filename = "MyEnergi_Data.csv"
-    print("Saving to:", filename)
+    verbose("saving to", filename)
     CSVOutput.write_csv(filename)
 
 
