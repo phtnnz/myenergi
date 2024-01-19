@@ -44,13 +44,14 @@ from configparser import ConfigParser
 import csv
 import locale
 import argparse
+import re
 
 # The following libs must be installed with pip
 from icecream import ic
 # Disable debugging
 ic.disable()
 # Local modules
-from verbose import verbose
+from verbose import verbose, warning, error
 
 global VERSION, AUTHOR, NAME
 VERSION = "0.2 / 2024-01-15"
@@ -152,14 +153,14 @@ def retrieve_month_hourly(api_server, year, month):
     verbose("Collecting", num_hours, "hours starting from:", start_datetime_local, "(local),", start_datetime_utc, "(UTC)")
 
     url = "https://" + api_server + "/cgi-jdayhour-" + id + '-' + str(utc_year) + '-' + str(utc_month) + '-' + str(utc_day) + '-' + str(utc_hour) + '-' + str(num_hours)
-    verbose("URL: " + url + "\n")
+    verbose("URL:", url)
 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     r = requests.get(url, auth = HTTPDigestAuth(Config.username,Config.password), headers = headers, timeout = 60)
 
     if r.status_code == 200:
         if id[0] == 'Z':
-            verbose('*** Success - Zappi ***')
+            verbose("success - Zappi")
             data = json.loads(r.content)
             ##DEBUG: received JSON
             # print("JSON =", json.dumps(data, indent=4))
@@ -218,7 +219,8 @@ def main():
         epilog      = "Version " + VERSION + " / " + AUTHOR)
     arg.add_argument("-v", "--verbose", action="store_true", help="verbose messages")
     arg.add_argument("-d", "--debug", action="store_true", help="more debug messages")
-    # arg.add_argument("-n", "--name", help="example option name")
+    arg.add_argument("-s", "--start", help="Start YYYY-MM for report (default this month)")
+    arg.add_argument("-e", "--end", help="End YYYY-MM for report (default this month)")
     # arg.add_argument("-i", "--int", type=int, help="example option int")
     # arg.add_argument("dirname", help="directory name")
     # # nargs="+" for min 1 filename argument
@@ -226,6 +228,7 @@ def main():
 
     args = arg.parse_args()
 
+    # Standard command line options
     if args.verbose:
         verbose.set_prog(NAME)
         verbose.enable()
@@ -233,13 +236,37 @@ def main():
         ic.enable()
     ic(args)
 
+    # Additional command line options
+    today = datetime.date.today()
+    year_s  = year_e  = today.year
+    month_s = month_e = today.month
+    if args.start:
+        m = re.match(r'^(\d\d\d\d)-(\d\d)$', args.start)
+        if m:
+            year_s = int(m.group(1))
+            month_s = int(m.group(2))
+        else:
+            error("illegal format for --start option:", args.start)
+    if args.end:
+        m = re.match(r'^(\d\d\d\d)-(\d\d)$', args.end)
+        if m:
+            year_e = int(m.group(1))
+            month_e = int(m.group(2))
+        else:
+            error("illegal format for --end option:", args.end)
+    ic(year_s, month_s, year_e, month_e)
+
+    # Actions starts here ...
     Config(".myenergi.cfg")
     CSVOutput.add_csv_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
 
     api_server = retrieve_api_server()
-    retrieve_month_hourly(api_server, 2023, 11)
-    retrieve_month_hourly(api_server, 2023, 12)
-    retrieve_month_hourly(api_server, 2024, 1)
+    for year in range(year_s, year_e+1):
+        month1 = month_s if year == year_s else 1
+        month2 = month_e if year == year_e else 12
+        for month in range(month1, month2+1):
+            ic(year, month)
+            retrieve_month_hourly(api_server, year, month)
 
     filename = "MyEnergi_Data.csv"
     print("Saving to:", filename)
