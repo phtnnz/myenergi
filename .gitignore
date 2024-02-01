@@ -6,3 +6,4 @@ venv/*
 test.csv
 __pycache__/
 *.csv
+*.xlsx
