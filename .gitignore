@@ -1,9 +1,8 @@
 .myenergi.cfg
 activate.bat
 create-venv.bat
-myenergi.xlsx
 venv/*
-test.csv
 __pycache__/
 *.csv
 *.xlsx
+OLD/
