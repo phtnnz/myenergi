@@ -34,12 +34,14 @@
 #       Zappi-only version of modified original script
 # Version 0.2 / 2024-01-12
 #       With proper command line interface
+# Version 0.3 / 2024-07-21
+#       Refactored to use zoneinfo, tzdata instead of pytz
 
 import requests
 import json
-import datetime
+from datetime import datetime, timezone, date
+from zoneinfo import ZoneInfo
 from requests.auth import HTTPDigestAuth
-import pytz
 from configparser import ConfigParser
 import csv
 import locale
@@ -47,6 +49,8 @@ import argparse
 import re
 
 # The following libs must be installed with pip
+# tzdata required on Windows for IANA timezone names!
+import tzdata
 from icecream import ic
 # Disable debugging
 ic.disable()
@@ -54,7 +58,7 @@ ic.disable()
 from verbose import verbose, warning, error
 
 global VERSION, AUTHOR, NAME
-VERSION = "0.2 / 2024-01-15"
+VERSION = "0.3 / 2024-07-21"
 AUTHOR  = "Martin Junius"
 NAME    = "myenergi-zappi2"
 
@@ -89,12 +93,13 @@ class Config(ConfigParser):
         Config.username = self.get("hub", "serial")
         Config.password = self.get("hub", "password")
         Config.id       = self.get("hub", "id")
-        Config.timezone = pytz.timezone(self.get("hub", "timezone"))
+        Config.timezone = ZoneInfo(self.get("hub", "timezone"))
         locale.setlocale(locale.LC_ALL, self.get("hub", "locale"))
         ic(Config.username, Config.password, Config.id, Config.timezone, locale.getlocale(), locale.localeconv())
 
 
 
+##FIXME: use new module CSVOutput
 class CSVOutput:
     csv_cache = []
     fields = None
@@ -140,17 +145,22 @@ def retrieve_month_hourly(api_server, year, month):
     local_hour  = 0
 
     # Convert start date and time to UTC
-    start_datetime_local = Config.timezone.localize(datetime.datetime(local_year, local_month, local_day, local_hour))
-    start_datetime_utc   = start_datetime_local.astimezone(pytz.utc)
+    start_datetime_local = datetime(local_year, local_month, local_day, local_hour, tzinfo=Config.timezone)
+    start_datetime_utc   = start_datetime_local.astimezone(tz=timezone.utc)
     utc_year             = start_datetime_utc.year
     utc_month            = start_datetime_utc.month
     utc_day              = start_datetime_utc.day
     utc_hour             = start_datetime_utc.hour
 
-    # Calculate hours in the month, which is not trivial with DST involved
-    start_next_month = datetime.datetime(local_year + (local_month // 12), (local_month % 12) + 1, local_day, local_hour)
-    start_next_month_local = Config.timezone.localize(start_next_month)
-    num_hours = round((start_next_month_local - start_datetime_local).total_seconds() / 60 / 60)
+    start_next_month_local = datetime(local_year + (local_month // 12), (local_month % 12) + 1, local_day, local_hour, tzinfo=Config.timezone)
+    start_next_month_utc = start_next_month_local.astimezone(tz=timezone.utc)
+  
+    # Calculate hours in the month, which is tricky with DST involved
+    # Always calculate ABSOLUTE delta using UTC, other DST switching incurs a wrong result!
+    # pytz works differently with local timezone than zoneinfo!
+    num_hours = (start_next_month_utc - start_datetime_utc).total_seconds() / 3600
+    ic(start_next_month_local, start_datetime_local, start_next_month_utc, start_datetime_utc, num_hours)
+
     ##MJ: API only allows a certain numbe of hours, 9999 was too much
 
     id = Config.id
@@ -198,7 +208,8 @@ def retrieve_month_hourly(api_server, year, month):
                 # daily_green_percentage = (daily_self_consumption / daily_property_usage)*100
 
                 # convert from UTC date/time in JSON output
-                localdt = datetime.datetime(yr,mon,dom,hr) .replace(tzinfo=pytz.utc) .astimezone(Config.timezone)
+                # localdt = datetime.datetime(yr,mon,dom,hr) .replace(tzinfo=pytz.utc) .astimezone(Config.timezone)
+                localdt = datetime(yr, mon, dom, hr, tzinfo=timezone.utc).astimezone(tz=Config.timezone)
                 # ic(localdt, daily_import, daily_export, daily_EV)
                 CSVOutput.add_csv_row([localdt.strftime("%x %X"),
                                        locale.format_string("%.3f", daily_import),
@@ -226,10 +237,6 @@ def main():
     arg.add_argument("-s", "--start", help="start YYYY-MM for report (default this month)")
     arg.add_argument("-e", "--end", help="end YYYY-MM for report (default this month)")
     arg.add_argument("-o", "--output", help="output CSV file (default MyEnergi_Data.csv)")
-    # arg.add_argument("-i", "--int", type=int, help="example option int")
-    # arg.add_argument("dirname", help="directory name")
-    # # nargs="+" for min 1 filename argument
-    # arg.add_argument("filename", nargs="*", help="filename")
 
     args = arg.parse_args()
 
@@ -242,7 +249,7 @@ def main():
     ic(args)
 
     # Additional command line options
-    today = datetime.date.today()
+    today = date.today()
     year_s  = year_e  = today.year
     month_s = month_e = today.month
     if args.start:
