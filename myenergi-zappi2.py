@@ -36,6 +36,8 @@
 #       With proper command line interface
 # Version 0.3 / 2024-07-21
 #       Refactored to use zoneinfo, tzdata instead of pytz
+# Version 0.4 / 2024-08-01
+#       Use new module csvoutput
 
 import requests
 import json
@@ -56,9 +58,11 @@ from icecream import ic
 ic.disable()
 # Local modules
 from verbose import verbose, warning, error
+from csvoutput import CSVOutput
+
 
 global VERSION, AUTHOR, NAME
-VERSION = "0.3 / 2024-07-21"
+VERSION = "0.4 / 2024-08-01"
 AUTHOR  = "Martin Junius"
 NAME    = "myenergi-zappi2"
 
@@ -94,33 +98,8 @@ class Config(ConfigParser):
         Config.password = self.get("hub", "password")
         Config.id       = self.get("hub", "id")
         Config.timezone = ZoneInfo(self.get("hub", "timezone"))
-        locale.setlocale(locale.LC_ALL, self.get("hub", "locale"))
+        CSVOutput.set_default_locale(self.get("hub", "locale"))
         ic(Config.username, Config.password, Config.id, Config.timezone, locale.getlocale(), locale.localeconv())
-
-
-
-##FIXME: use new module CSVOutput
-class CSVOutput:
-    csv_cache = []
-    fields = None
-
-    def add_csv_row(obj):
-        CSVOutput.csv_cache.append(obj)
-
-    def add_csv_fields(fields):
-        CSVOutput.fields = fields
-
-    def write_csv(file):
-        with open(file, 'w', newline='') as f:
-            ##FIXME: check  locale.RADIXCHAR
-            if locale.localeconv()['decimal_point'] == ",":
-                # Use ; as the separator and quote all fields for easy import in "German" Excel
-                writer = csv.writer(f, dialect="excel", delimiter=";", quoting=csv.QUOTE_ALL)
-            else:
-                writer = csv.writer(f, dialect="excel")
-            if CSVOutput.fields:
-                writer.writerow(CSVOutput.fields)
-            writer.writerows(CSVOutput.csv_cache)
 
 
 
@@ -156,7 +135,7 @@ def retrieve_month_hourly(api_server, year, month):
     start_next_month_utc = start_next_month_local.astimezone(tz=timezone.utc)
   
     # Calculate hours in the month, which is tricky with DST involved
-    # Always calculate ABSOLUTE delta using UTC, other DST switching incurs a wrong result!
+    # Always calculate ABSOLUTE delta using UTC, otherwise DST switching incurs a wrong result!
     # pytz works differently with local timezone than zoneinfo!
     num_hours = (start_next_month_utc - start_datetime_utc).total_seconds() / 3600
     ic(start_next_month_local, start_datetime_local, start_next_month_utc, start_datetime_utc, num_hours)
@@ -211,11 +190,7 @@ def retrieve_month_hourly(api_server, year, month):
                 # localdt = datetime.datetime(yr,mon,dom,hr) .replace(tzinfo=pytz.utc) .astimezone(Config.timezone)
                 localdt = datetime(yr, mon, dom, hr, tzinfo=timezone.utc).astimezone(tz=Config.timezone)
                 # ic(localdt, daily_import, daily_export, daily_EV)
-                CSVOutput.add_csv_row([localdt.strftime("%x %X"),
-                                       locale.format_string("%.3f", daily_import),
-                                       locale.format_string("%.3f", daily_export),
-                                       locale.format_string("%.3f", daily_EV)
-                                       ])
+                CSVOutput.add_row([localdt.strftime("%x %X"), daily_import, daily_export, daily_EV])
         else:
             print ('Error: unknown ID prefix provided.')
     else:
@@ -271,7 +246,7 @@ def main():
 
     # Actions starts here ...
     Config(".myenergi.cfg")
-    CSVOutput.add_csv_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
+    CSVOutput.add_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
 
     api_server = retrieve_api_server()
     for year in range(year_s, year_e+1):
@@ -282,7 +257,7 @@ def main():
             retrieve_month_hourly(api_server, year, month)
 
     verbose("saving to", filename)
-    CSVOutput.write_csv(filename)
+    CSVOutput.write(filename)
 
 
 
