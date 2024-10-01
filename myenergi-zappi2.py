@@ -74,7 +74,7 @@ NAME    = "myenergi-zappi2"
 # serial=12345678
 # password=yourpassword
 # id=Z12345678      # "Z" for Zappi + serial
-# id=E12345678      # "E" for Eddit + serial
+# id=E12345678      # "E" for Eddi + serial
 # timezone=Europe/Berlin
 # locale=
 
@@ -136,7 +136,7 @@ def retrieve_month_hourly(api_server, year, month):
   
     # Calculate hours in the month, which is tricky with DST involved
     # Always calculate ABSOLUTE delta using UTC, otherwise DST switching incurs a wrong result!
-    # pytz works differently with local timezone than zoneinfo!
+    # The old pytz library works differently with local timezone than zoneinfo used here!
     num_hours = (start_next_month_utc - start_datetime_utc).total_seconds() / 3600
     ic(start_next_month_local, start_datetime_local, start_next_month_utc, start_datetime_utc, num_hours)
 
@@ -187,7 +187,6 @@ def retrieve_month_hourly(api_server, year, month):
                 # daily_green_percentage = (daily_self_consumption / daily_property_usage)*100
 
                 # convert from UTC date/time in JSON output
-                # localdt = datetime.datetime(yr,mon,dom,hr) .replace(tzinfo=pytz.utc) .astimezone(Config.timezone)
                 localdt = datetime(yr, mon, dom, hr, tzinfo=timezone.utc).astimezone(tz=Config.timezone)
                 # ic(localdt, daily_import, daily_export, daily_EV)
                 CSVOutput.add_row([localdt.strftime("%x %X"), daily_import, daily_export, daily_EV])
