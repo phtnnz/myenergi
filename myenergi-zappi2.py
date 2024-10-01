@@ -45,7 +45,6 @@ from datetime import datetime, timezone, date
 from zoneinfo import ZoneInfo
 from requests.auth import HTTPDigestAuth
 from configparser import ConfigParser
-import csv
 import locale
 import argparse
 import re
