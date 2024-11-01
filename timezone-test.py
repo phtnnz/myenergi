@@ -44,14 +44,14 @@ ic("--- wrong absolute delta with local datetime (timedelta ist wall clock!) ---
 # not DST
 dt1 = datetime(2024, 3, 1, 0, 0, 0, tzinfo=loc)
 ic(dt1, dt1.dst(), dt1.utcoffset(), dt1.isoformat())
-# DST, swich on 2024-03-31
+# DST, switch on 2024-03-31
 dt2 = datetime(2024, 4, 1, 0, 0, 0, tzinfo=loc)
 ic(dt2, dt2.dst(), dt2.utcoffset(), dt2.isoformat())
 
 delta = dt2 - dt1
 ic(delta, delta.total_seconds()/3600)
 
-ic("--- correct delta with local datetime ---")
+ic("--- correct delta with UTC datetime ---")
 utc1 = dt1.astimezone(utc)
 utc2 = dt2.astimezone(utc)
 udelta = utc2 - utc1
