@@ -24,4 +24,4 @@ posted to myenergi's forum https://myenergi.info/extracting-energy-data-t7445.ht
 
 Feel free to use, extend, contribute.
 
-Works only with Zappi data, as that's the only Myenergi devices I own.
+Works only with Zappi data, as that's the only Myenergi device I own.
