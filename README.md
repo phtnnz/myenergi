@@ -1,4 +1,4 @@
-# Astropy-Workbench
+# Myenergi
 
 Python scripts to retrieve Myenergi Zappi data
 
