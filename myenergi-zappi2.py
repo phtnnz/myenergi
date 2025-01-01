@@ -57,7 +57,7 @@ from icecream import ic
 ic.disable()
 # Local modules
 from verbose import verbose, warning, error
-from csvoutput import CSVOutput
+from csvoutput import csv_output
 
 
 global VERSION, AUTHOR, NAME
@@ -97,7 +97,7 @@ class Config(ConfigParser):
         Config.password = self.get("hub", "password")
         Config.id       = self.get("hub", "id")
         Config.timezone = ZoneInfo(self.get("hub", "timezone"))
-        CSVOutput.set_default_locale(self.get("hub", "locale"))
+        csv_output.set_default_locale(self.get("hub", "locale"))
         ic(Config.username, Config.password, Config.id, Config.timezone, locale.getlocale(), locale.localeconv())
 
 
@@ -188,7 +188,7 @@ def retrieve_month_hourly(api_server, year, month):
                 # convert from UTC date/time in JSON output
                 localdt = datetime(yr, mon, dom, hr, tzinfo=timezone.utc).astimezone(tz=Config.timezone)
                 # ic(localdt, daily_import, daily_export, daily_EV)
-                CSVOutput.add_row([localdt.strftime("%x %X"), daily_import, daily_export, daily_EV])
+                csv_output.add_row([localdt.strftime("%x %X"), daily_import, daily_export, daily_EV])
         else:
             print ('Error: unknown ID prefix provided.')
     else:
@@ -244,7 +244,7 @@ def main():
 
     # Actions starts here ...
     Config(".myenergi.cfg")
-    CSVOutput.add_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
+    csv_output.add_fields(["Date", "Import (kWh)", "Export (kWh)", "BEV (kWh)"])
 
     api_server = retrieve_api_server()
     for year in range(year_s, year_e+1):
@@ -255,7 +255,7 @@ def main():
             retrieve_month_hourly(api_server, year, month)
 
     verbose("saving to", filename)
-    CSVOutput.write(filename)
+    csv_output.write(filename)
 
 
 
