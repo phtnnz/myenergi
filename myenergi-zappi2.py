@@ -152,7 +152,7 @@ def retrieve_month_hourly(api_server, year, month):
 
     if r.status_code == 200:
         if id[0] == 'Z':
-            verbose("success - Zappi")
+            # verbose("success - Zappi")
             data = json.loads(r.content)
             ##DEBUG: received JSON
             # print("JSON =", json.dumps(data, indent=4))
