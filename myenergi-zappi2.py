@@ -107,7 +107,7 @@ def retrieve_api_server():
     director_url = "https://director.myenergi.net"
     verbose("Director:", director_url)
     response = requests.get(director_url, auth=HTTPDigestAuth(Config.username, Config.password))
-    verbose(response)
+    # verbose(response)
     api_server = response.headers['X_MYENERGI-asn']
 
     verbose("API server:", api_server)
