@@ -157,6 +157,8 @@ def retrieve_month_hourly(api_server, year, month):
             ##DEBUG: received JSON
             # print("JSON =", json.dumps(data, indent=4))
             rec='U' + id[1:] #No idea why my response is with a U and not a Z, this may be the case for everyone, or may need altering?
+            if not rec in data:
+                error(f"{rec} not found, JSON={json.dumps(data, indent=4)}")
             for data1 in data[rec]:
                 # if i >= len(data[rec]):     ## MJ: fixed, if hourly data for complete month isn't available
                 #     break            
